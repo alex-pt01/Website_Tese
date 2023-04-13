@@ -1,0 +1,67 @@
+{% extends "layout.html" %}
+{% block content %}
+    <br>
+	<section ><!--form-->
+        
+        <div class="row">
+				<div style="  margin:auto;
+                width:40%;
+                padding:50px;
+                margin-top: -60px
+               ">
+                               {% if error %}
+                               <div id="hideDiv" style= "position: absolute;float:right;  " class=" col-sm-2 alert alert-danger">
+                                   {{ error }}
+                               </div>
+                       {% endif %}
+                {% if messages %}
+                {% for message in messages %}
+                    {% if message.level == 25 %}
+                        <div id="hideDiv" style= "float:right;   " class=" col-sm-2 alert alert-success">
+                            {{ message }}
+                        </div>
+                        {% else %}
+                            <div id="hideDiv"  style= "float:right;   " class=" col-sm-2 alert alert-danger">
+                                {{ message }}
+                            </div>
+                    {% endif %}
+
+                {% endfor %}
+            {% endif %}
+
+					<div class="login-form">
+
+                        <h2>UPDATE MY ACCOUNT</h2>
+                        <strong>Please, fill in all the fields.</strong>
+
+                        <hr>
+					    <form method="POST" action="">
+						    {% csrf_token %}
+                            {{ form }}
+
+                            <button style="float:right;" type="submit" class="btn btn-default">Update User</button>
+
+						</form>
+					</div>
+				</div>
+
+
+        </div>
+    </div>
+    <br>    <br>
+
+    <footer id="footer"><!--Footer-->
+
+        <div class="footer-bottom">
+            <div class="container">
+                <div class="row">
+                    <p class="pull-left">©TECHON 2022-2023. All rights reserved.</p>
+                    <p class="pull-right">Dissertação de Mestrado - Alexandre Antunes Rodrigues</p>
+                </div>
+            </div>
+        </div>
+
+    </footer>
+	</section>
+{% endblock %}
+

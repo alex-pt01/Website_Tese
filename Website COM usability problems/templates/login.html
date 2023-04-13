@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+{% block content %}
+
+	<section ><!--form-->
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.level == 25 %}
+                            <div id="hideDiv" style= "position: absolute; margin-left: 33%;   " class=" col-sm-4 alert alert-success">
+                                {{ message }}
+                            </div>
+                            {% else %}
+                                <div id="hideDiv" style= "position: absolute; margin-left: 33%;   " class=" col-sm-4 alert alert-danger">
+                                    {{ message }}
+                                </div>
+                        {% endif %}
+
+                    {% endfor %}
+                {% endif %}
+
+				<div    style="  margin:auto;
+                      width:40%;
+                      padding:50px;
+                      margin-top: -50px
+                     ">
+					<div class="login-form"><!--login form-->
+						<h2>ALREADY A CUSTOMER?</h2>
+					    <form method="POST" action="">
+						    {% csrf_token %}
+                            <label>Username</label>
+
+							<input name="user" type="text"  />
+                            <label>Password</label>
+
+							<input name="pass" type="password"  />
+                            <span style="float:left;"> Don't have an account?</span>
+							<span>
+                                <a style="float:right;" href="{% url 'signup' %}" > Signup </a>
+							</span>
+
+                            <br/>                            <br/>
+
+                            <button style="float:right;" type="submit" class="btn btn-default">SIGN IN</button>
+
+						</form>
+					</div><!--/login form-->
+				</div>
+
+
+	</section>
+    <br><br>
+    <br><br>
+    <br><br>
+    <br><br><br><br><br><br>
+    <br>
+
+    
+
+    <br>
+    <div class="footer-bottom">
+        <div class="container">
+        <div class="row">
+            <p class="pull-left">Copyright © 2022-2023 TechIST. All rights reserved.</p>
+            <p class="pull-right">Dissertação de Mestrado - Alexandre Antunes Rodrigues</p>
+        </div>
+        </div>
+        </div>
+{% endblock %}
+
