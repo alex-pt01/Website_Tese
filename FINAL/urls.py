@@ -43,6 +43,16 @@ urlpatterns = [
 
 
     #TEAM MEMBER -----------------------------------------------------------------------------------
+    path('manage_usabilitySmells/', views.manage_usabilitySmells, name='manage_usabilitySmells'),
+    path('create_usabilitySmell/', views.create_usabilitySmell, name='create_usabilitySmell'),
+    path('editUsabilitySmells/<int:id>', views.editUsabilitySmells, name='editUsabilitySmells'),
+    path('deleteUsabilitySmell/<int:id>', views.deleteUsabilitySmell, name='deleteUsabilitySmell'),
+
+    path('manage_heuristicEvaluations/', views.manage_heuristicEvaluations, name='manage_heuristicEvaluations'),
+    path('create_heuristicEvaluation/', views.create_heuristicEvaluation, name='create_heuristicEvaluation'),
+    path('editHeuristicEvaluation/<int:id>', views.editHeuristicEvaluation, name='editHeuristicEvaluation'),
+    path('deleteHeuristicEvaluation/<int:id>', views.deleteHeuristicEvaluation, name='deleteHeuristicEvaluation'),
+
     path('manage_teamMember_Invitations/', views.manage_teamMember_Invitations, name='manage_teamMember_Invitations'),
     path('accept_teamMember_Invitation/<int:id>', views.accept_teamMember_Invitation, name='accept_teamMember_Invitation'),
 

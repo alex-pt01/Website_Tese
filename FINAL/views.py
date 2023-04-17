@@ -6,6 +6,8 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.conf.urls.static import static
 from app.forms import *
 from app.models import *
+from app.filters import *
+
 from app.funcs import *
 import subprocess
 from django.conf import settings
@@ -127,11 +129,12 @@ def CW_usability_tests(request, id):
         print("PROJECTS  ",Allprojects)
 
         videos_dict = {}
-
+        videos_dict_bool = False
       
         projetos = Allprojects
         videos = Video.objects.filter(project__id=id) 
-        
+        project = Project.objects.filter(id=id).first()
+        print(project)
         print(videos)
 
         
@@ -167,10 +170,13 @@ def CW_usability_tests(request, id):
                data.append(totalTasks_with_emotion) #4 total tasks without emotion
 
                videos_dict[video] = data
-        return render(request, 'CW_usability_tests.html', {'project_name':videos[0].project.name,
+               if len(videos_dict) != 0:
+                    videos_dict_bool = True
+        return render(request, 'CW_usability_tests.html', {'project_name':project.name,
                                                            'videos_dict': videos_dict,
                                                             'projectBool':projectBool,
-                                                            'projects_':Allprojects}) 
+                                                            'projects_':Allprojects,
+                                                            'videos_dict_bool':videos_dict_bool}) 
     return redirect('login')
 
 #2º
@@ -344,9 +350,10 @@ def CW_evaluateTask(request, x, projName, projID, id):
 def Smells_usability_tests(request, id):
     if request.user.is_authenticated:
         projectBool, Allprojects= nav_TeamMember_projects(request)
+        project = Project.objects.filter(id=id).first()
 
         videos_dict = {}
-
+        videos_dict_bool = False
         videos = Video.objects.filter(project__id=id) 
         for video in videos:
             #apenas aparece o video splited
@@ -380,10 +387,13 @@ def Smells_usability_tests(request, id):
                data.append(totalTasks_with_emotion) #4 total tasks without emotion
 
                videos_dict[video] = data
-        return render(request, 'Smells_usability_tests.html', {'project_name':videos[0].project.name,
+
+               if len(videos_dict) !=0:
+                   videos_dict_bool = True
+        return render(request, 'Smells_usability_tests.html', {'project_name':project.name,
                                                            'videos_dict': videos_dict,
                                                             'projectBool':projectBool,
-                                                            'projects_':Allprojects}) 
+                                                            'projects_':Allprojects,'videos_dict_bool':videos_dict_bool}) 
     return redirect('login')
 
 def Smells_tasks(request, x, projName, projID, id):
@@ -552,25 +562,221 @@ def Smells_evaluateTask(request, x, projName, projID, id):
 
 #END TEAM MEMBER VIEW--------------------------------------------------------------------------------------------------------------
 
+#HEURISTIC EVALUATION------------------------------------------------------------------------
+def manage_heuristicEvaluations(request):
+    if request.user.is_authenticated:
+        heuristics = []
+        try:
+            teamLeader = TeamLeader.objects.filter(user=request.user).first()
+            heuristicEvaluations = HeuristicEvaluation.objects.filter(teamLeader=teamLeader)
+            if request.method == 'GET':
+                print("IT'S A GET")
+                form = HeuristicEvaluationForm(request.GET)
+                print(form)
+                if form.is_valid():       
+                    heuristicEvaluations = HeuristicEvaluation.objects.filter(Q(teamLeader=teamLeader) 
+                                                          & Q(heuristicName__icontains= request.GET.get('heuristicName')) if request.GET.get('heuristicName') else Q() 
+                                                        & Q(description__icontains=request.GET.get('description')) if request.GET.get('description') else Q())
+                                                       
+            
+
+        except TeamLeader.DoesNotExist:
+            print("TeamLeader.DoesNotExist")
+        return render(request, 'manage_heuristicEvaluations.html', {  'heuristicEvaluations': heuristicEvaluations}) 
+
+    return redirect('login')
+
+def create_heuristicEvaluation(request):
+    form = HeuristicEvaluationForm()
+    if request.user.is_authenticated:
+        if request.method == 'POST':
+            form = HeuristicEvaluationForm(request.POST)
+            print(form)
+            if form.is_valid():
+                data = form.cleaned_data
+                heuristicName = data['heuristicName']
+                description = data['description']
+
+                try:
+                    team_leader = TeamLeader.objects.get(user=request.user)
+                    heuristic = HeuristicEvaluation(teamLeader=team_leader, heuristicName=heuristicName, description=description)
+                    heuristic.save()  
+                except TeamLeader.DoesNotExist:
+                    print("TeamLeader.DoesNotExist")
+
+                return redirect(manage_heuristicEvaluations)
+            else:
+                return render(request, 'create_heuristicEvaluation.html')
+        return render(request, 'create_heuristicEvaluation.html', { 'form': form, 'projects': nav_TeamLeader_projects(request)})
+    return redirect('login')
+
+def deleteHeuristicEvaluation(request, id):
+    if request.user.is_authenticated:
+        heuristic = HeuristicEvaluation.objects.get(id=id)
+        heuristic.delete()
+        return HttpResponseRedirect('/manage_heuristicEvaluations/')
+    return redirect('login')
+
+def editHeuristicEvaluation(request, id):
+    try:
+        teamLeader = TeamLeader.objects.filter(user=request.user).first()
+        #usabilitySmells = Project.objects.filter(teamLeader=teamLeader)
+    
+    except TeamLeader.DoesNotExist:
+        print("TeamLeader.DoesNotExist")
+    if request.user.is_authenticated:
+        heuristic = HeuristicEvaluation.objects.get(id=id)
+
+        if request.method == 'POST':
+            form = HeuristicEvaluationForm(request.POST)
+            if form.is_valid():
+                data = form.cleaned_data
+                if data['heuristicName'] != "":
+                    heuristic.heuristicName = data['heuristicName']
+                if data['description'] != "":
+                    heuristic.description = data['description']
+ 
+                heuristic.save()
+                return redirect(manage_heuristicEvaluations) 
+        else:
+            form = HeuristicEvaluationForm(initial={
+                'heuristicName': heuristic.heuristicName,
+                'description': heuristic.description,
+          
+            })
+        return render(request, 'editHeuristicEvaluation.html', { 'form': form,'projects': nav_TeamLeader_projects(request)})
+    return redirect('login')
+
+
+#-USABILITY SMELLS CRUD----------------------------------------------------------------------------------------------------
+def manage_usabilitySmells(request):
+    if request.user.is_authenticated:
+        usabilitySmells = []
+        try:
+            teamLeader = TeamLeader.objects.filter(user=request.user).first()
+            usabilitySmells = UsabilitySmells.objects.filter(teamLeader=teamLeader)
+            if request.method == 'GET':
+                print("IT'S A GET")
+                form = UsabilitySmellsForm(request.GET)
+                print(form)
+                if form.is_valid(): 
+                    data = form.cleaned_data
+                    usabilitySmell = data['usabilitySmell']
+                    description = data['description']
+          
+                    usabilitySmells = UsabilitySmells.objects.filter(Q(teamLeader=teamLeader) 
+                                                          & Q(usabilitySmell__icontains= request.GET.get('usabilitySmell')) if request.GET.get('usabilitySmell') else Q() 
+                                                        & Q(description__icontains=request.GET.get('description')) if request.GET.get('description') else Q())
+                                                       
+            
+
+        except TeamLeader.DoesNotExist:
+            print("TeamLeader.DoesNotExist")
+        return render(request, 'manage_usabilitySmells.html', {  'usabilitySmells': usabilitySmells}) 
+
+    return redirect('login')
+
+def create_usabilitySmell(request):
+    form = UsabilitySmellsForm()
+    if request.user.is_authenticated:
+        if request.method == 'POST':
+            form = UsabilitySmellsForm(request.POST)
+            print(form)
+            if form.is_valid():
+                data = form.cleaned_data
+                usabilitySmell = data['usabilitySmell']
+                description = data['description']
+
+                try:
+                    team_leader = TeamLeader.objects.get(user=request.user)
+                    usabilitySmell = UsabilitySmells(teamLeader=team_leader, usabilitySmell=usabilitySmell, description=description)
+                    usabilitySmell.save()  
+                except TeamLeader.DoesNotExist:
+                    print("TeamLeader.DoesNotExist")
+
+                return redirect(manage_usabilitySmells)
+            else:
+                return render(request, 'create_usabilitySmell.html')
+        return render(request, 'create_usabilitySmell.html', { 'form': form, 'projects': nav_TeamLeader_projects(request)})
+    return redirect('login')
+
+def deleteUsabilitySmell(request, id):
+    if request.user.is_authenticated:
+        usabilitySmell = UsabilitySmells.objects.get(id=id)
+        usabilitySmell.delete()
+        return HttpResponseRedirect('/manage_usabilitySmells/')
+    return redirect('login')
+
+def editUsabilitySmells(request, id):
+    try:
+        teamLeader = TeamLeader.objects.filter(user=request.user).first()
+        #usabilitySmells = Project.objects.filter(teamLeader=teamLeader)
+    
+    except TeamLeader.DoesNotExist:
+        print("TeamLeader.DoesNotExist")
+    if request.user.is_authenticated:
+        usabilitySmell = UsabilitySmells.objects.get(id=id)
+
+        if request.method == 'POST':
+            form = UsabilitySmellsForm(request.POST)
+            if form.is_valid():
+                data = form.cleaned_data
+                if data['usabilitySmell'] != "":
+                    usabilitySmell.usabilitySmell = data['usabilitySmell']
+                if data['description'] != "":
+                    usabilitySmell.description = data['description']
+ 
+                usabilitySmell.save()
+                return redirect(manage_usabilitySmells) 
+        else:
+            form = UsabilitySmellsForm(initial={
+                'usabilitySmell': usabilitySmell.usabilitySmell,
+                'description': usabilitySmell.description,
+          
+            })
+        return render(request, 'editUsabilitySmells.html', { 'form': form,'projects': nav_TeamLeader_projects(request)})
+    return redirect('login')
+
+
+
 
 def manage_projects(request):
     if request.user.is_authenticated:
         projects_ = []
-        projectsBool = False
         try:
             teamLeader = TeamLeader.objects.filter(user=request.user).first()
-            print("RRR ", teamLeader)
             projects = Project.objects.filter(teamLeader=teamLeader)
-            print("AAAA ", projects)
+  
 
-            for project in projects:
-                projects_.append(project)
-            projectsBool = True
+            if request.method == 'GET':
+                print("IT'S A GET")
+                form = ProjectSearchForm(request.GET)
+                print(form)
+                if form.is_valid(): 
+                    data = form.cleaned_data
+                    name = data['name']
+                    description = data['description']
+                    start_date =data['start_date']
+                    end_date =data['end_date']
+                    print("ENNDDD DATEEE  ",end_date)
+                    projects = Project.objects.filter(Q(teamLeader=teamLeader) 
+                                                          & Q(name__icontains= request.GET.get('name')) if request.GET.get('name') else Q() 
+                                                        & Q(description__icontains=request.GET.get('description')) if request.GET.get('description') else Q() 
+                                                        & Q(start_date__gte= request.GET.get('start_date')) if request.GET.get('start_date') else Q() 
+                                                        & Q(end_date__lte=request.GET.get('end_date')) if request.GET.get('end_date') else Q() )
+            
+
+
+            
+  
+            return render(request, 'manage_projects.html', {  'projects': projects}) 
+
         except TeamLeader.DoesNotExist:
             print("TeamLeader.DoesNotExist")
         print("FF ", projects_)
-        return render(request, 'manage_projects.html', {'projects': projects_, 'projectsBool':projectsBool}) 
     return redirect('login')
+
+
 
 def create_project(request):
     form = ProjectForm()
@@ -880,19 +1086,91 @@ def manageTestingVideos(request):
         videos_dict = {}
         #Current Team leader videos only
         teamLeader = TeamLeader.objects.filter(user=request.user).first()
-        projects = Project.objects.filter(teamLeader=teamLeader)
+        if request.method == 'GET':
+                print("GET")
+                form = selectVideoSearchForm(request.POST)
+                if form.is_valid():
+                    print("IS VALID")
+                    data = form.cleaned_data
+                    print("DATA :D  "  , data)
+                    if request.GET.get('proj_name') :
+                        print(request.GET.get('usability_test_name'))
+                        print("TRUE----")
+                        projects = Project.objects.filter(Q(teamLeader=teamLeader) & Q(name__icontains=request.GET.get('proj_name')) if request.GET.get('proj_name') else Q()  )
+                        print("PROJECTS  ",projects)
+                        if len(projects) !=0:
+                            for project in projects:
+                                videos = Video.objects.filter(Q(project=project) 
+                                                            & Q(usability_test_name__icontains= request.GET.get('usability_test_name')) if request.GET.get('usability_test_name') else Q() 
+                                                            & Q(user_type__icontains=request.GET.get('user_type')) if request.GET.get('user_type') else Q() 
+                                                            & Q(user_UID__icontains= request.GET.get('user_UID')) if request.GET.get('user_UID') else Q() 
+                                                            & Q(local__icontains=request.GET.get('local')) if request.GET.get('local') else Q() )
+                                print("VIDEOS  ", videos)
+                                for video in videos:
+                                    print("splited_bool ", request.POST.getlist('splited_bool', []))
+                                    if len(request.GET.getlist('splited_bool', []))  != 0:
+                                        value = request.GET.getlist('splited_bool', [])[0]
+                                        if value == "Yes":
+                                            if SubVideoTask.objects.filter(video = video).exists():
+                                                videos_dict[video] = True
+                                        else:
+                                            if not SubVideoTask.objects.filter(video = video).exists():
+                                                videos_dict[video] = False
+                                    else:
+                                        if SubVideoTask.objects.filter(video = video).exists():
+                                            videos_dict[video] = True
+                                        else:
+                                            if not SubVideoTask.objects.filter(video = video).exists():
+                                                videos_dict[video] = False
+                        
 
-        videos = []
-        for project in projects:
-            project_videos = Video.objects.filter(project=project)
-            for project_video in project_videos:
-                videos.append(project_video)
+                    else:
+                        print(request.GET.get('usability_test_name'))
+                        print("NO PROJECT NAME")
+                        projects = Project.objects.filter(teamLeader=teamLeader)
+                        for project in projects:
+                            videos = Video.objects.filter(Q(project=project) 
+                                                            & Q(usability_test_name__icontains= request.GET.get('usability_test_name')) if request.GET.get('usability_test_name') else Q() 
+                                                            & Q(user_type__icontains=request.GET.get('user_type')) if request.GET.get('user_type') else Q() 
+                                                            & Q(user_UID= request.GET.get('user_UID')) if request.GET.get('user_UID') else Q() 
+                                                            & Q(local__icontains=request.GET.get('local')) if request.GET.get('local') else Q() )
+                            print("VIDEOS  ", videos)
 
-        for video in videos:
-            if SubVideoTask.objects.filter(video = video).exists():
-               videos_dict[video] = True
-            else:
-                videos_dict[video] = False
+                            for video in videos:
+                                print("TTT", video.user_UID)
+                                if len(request.GET.getlist('splited_bool', []))  != 0:
+                                    value = request.GET.getlist('splited_bool', [])[0]
+                                    if value == "Yes":
+                                        print("YES ---")
+                                        if SubVideoTask.objects.filter(video = video).exists():
+                                            videos_dict[video] = True
+                                    else:
+                                        if not SubVideoTask.objects.filter(video = video).exists():
+                                            videos_dict[video] = False
+                                else:
+                                    if SubVideoTask.objects.filter(video = video).exists():
+                                        videos_dict[video] = True
+                                    else:
+                                        if not SubVideoTask.objects.filter(video = video).exists():
+                                            videos_dict[video] = False
+
+        else:
+            print("ISN'T VALID")
+
+            projects = Project.objects.filter(teamLeader=teamLeader)
+
+            videos = []
+            for project in projects:
+                project_videos = Video.objects.filter(project=project)
+                for project_video in project_videos:
+                    videos.append(project_video)
+            
+            for video in videos:
+                if SubVideoTask.objects.filter(video = video).exists():
+                    videos_dict[video] = True
+                else:
+                    videos_dict[video] = False
+            print("FINAL VIDEOS ", videos_dict)
         return render(request, 'manageTestingVideos.html', {'projects': nav_TeamLeader_projects(request),'videos_dict': videos_dict}) 
     return redirect('login')
 
@@ -939,23 +1217,99 @@ def updateVideo(request, id):
 def selectVideoToSplit(request):
     if request.user.is_authenticated:
         videos_dict = {}
+        print("videos_dict	", videos_dict)
         #Current Team leader videos only
         teamLeader = TeamLeader.objects.filter(user=request.user).first()
-        projects = Project.objects.filter(teamLeader=teamLeader)
+        print("AQUI")
+        #search bar
+        if request.method == 'GET':
+            print("GET")
+            form = selectVideoSearchForm(request.POST)
+            if form.is_valid():
+                print("IS VALID")
+                data = form.cleaned_data
+                print("DATA :D  "  , data)
+                if request.GET.get('proj_name') :
+                    print(request.GET.get('usability_test_name'))
+                    print("TRUE----")
+                    projects = Project.objects.filter(Q(teamLeader=teamLeader) & Q(name__icontains=request.GET.get('proj_name')) if request.GET.get('proj_name') else Q()  )
+                    print("PROJECTS  ",projects)
+                    if len(projects) !=0:
+                        for project in projects:
+                            videos = Video.objects.filter(Q(project=project) 
+                                                          & Q(usability_test_name__icontains= request.GET.get('usability_test_name')) if request.GET.get('usability_test_name') else Q() 
+                                                        & Q(user_type__icontains=request.GET.get('user_type')) if request.GET.get('user_type') else Q() 
+                                                        & Q(user_UID__icontains= request.GET.get('user_UID')) if request.GET.get('user_UID') else Q() 
+                                                        & Q(local__icontains=request.GET.get('local')) if request.GET.get('local') else Q() )
+                            print("VIDEOS  ", videos)
+                            for video in videos:
+                                print("splited_bool ", request.POST.getlist('splited_bool', []))
+                                if len(request.GET.getlist('splited_bool', []))  != 0:
+                                    value = request.GET.getlist('splited_bool', [])[0]
+                                    if value == "Yes":
+                                        if SubVideoTask.objects.filter(video = video).exists():
+                                            videos_dict[video] = True
+                                    else:
+                                        if not SubVideoTask.objects.filter(video = video).exists():
+                                            videos_dict[video] = False
+                                else:
+                                    if SubVideoTask.objects.filter(video = video).exists():
+                                        videos_dict[video] = True
+                                    else:
+                                        if not SubVideoTask.objects.filter(video = video).exists():
+                                            videos_dict[video] = False
+                    
 
-        videos = []
-        for project in projects:
-            project_videos = Video.objects.filter(project=project)
-            for project_video in project_videos:
-                videos.append(project_video)
-        
-        for video in videos:
-            if SubVideoTask.objects.filter(video = video).exists():
-               videos_dict[video] = True
-            else:
-                videos_dict[video] = False
+                else:
+                    print(request.GET.get('usability_test_name'))
+                    print("NO PROJECT NAME")
+                    projects = Project.objects.filter(teamLeader=teamLeader)
+                    for project in projects:
+                        videos = Video.objects.filter(Q(project=project) 
+                                                        & Q(usability_test_name__icontains= request.GET.get('usability_test_name')) if request.GET.get('usability_test_name') else Q() 
+                                                        & Q(user_type__icontains=request.GET.get('user_type')) if request.GET.get('user_type') else Q() 
+                                                        & Q(user_UID= request.GET.get('user_UID')) if request.GET.get('user_UID') else Q() 
+                                                        & Q(local__icontains=request.GET.get('local')) if request.GET.get('local') else Q() )
+                        print("VIDEOS  ", videos)
 
-        return render(request, 'selectVideoToSplit.html', {'projects': nav_TeamLeader_projects(request),'videos_dict': videos_dict}) 
+                        for video in videos:
+                            print("TTT", video.user_UID)
+                            if len(request.GET.getlist('splited_bool', []))  != 0:
+                                value = request.GET.getlist('splited_bool', [])[0]
+                                if value == "Yes":
+                                    print("YES ---")
+                                    if SubVideoTask.objects.filter(video = video).exists():
+                                        videos_dict[video] = True
+                                else:
+                                    if not SubVideoTask.objects.filter(video = video).exists():
+                                        videos_dict[video] = False
+                            else:
+                                if SubVideoTask.objects.filter(video = video).exists():
+                                    videos_dict[video] = True
+                                else:
+                                    if not SubVideoTask.objects.filter(video = video).exists():
+                                        videos_dict[video] = False
+
+        else:
+            print("ISN'T VALID")
+
+            projects = Project.objects.filter(teamLeader=teamLeader)
+
+            videos = []
+            for project in projects:
+                project_videos = Video.objects.filter(project=project)
+                for project_video in project_videos:
+                    videos.append(project_video)
+            
+            for video in videos:
+                if SubVideoTask.objects.filter(video = video).exists():
+                    videos_dict[video] = True
+                else:
+                    videos_dict[video] = False
+            print("FINAL VIDEOS ", videos_dict)
+
+        return render(request, 'selectVideoToSplit.html', {'projects': nav_TeamLeader_projects(request),
+                                                           'videos_dict': videos_dict}) 
     return redirect('login')
 
 #obter o video selecionado para dar split
@@ -1143,8 +1497,19 @@ def signup(request):
 def account(request):
     tparams = {}
     if request.user.is_authenticated:
+        projectBool, projects= nav_TeamMember_projects(request)
+
+        teamLeader = TeamLeader.objects.filter(user=request.user).first()
+        teamMember = TeamMember.objects.filter(user=request.user).first()
+        user_profile = None
+        if teamLeader != None:
+            user_profile =teamLeader
+        elif teamMember != None:
+            user_profile =teamMember
         if request.method == 'POST':
             form = updateUserForm(request.POST)
+
+
             if form.is_valid():
                 print("SIMM")
                 data = form.cleaned_data
@@ -1165,6 +1530,12 @@ def account(request):
                         user.last_name = lastName
                     if email != "":
                         user.email = email
+                    if request.FILES['avatar'] != None:
+                        if user_profile != None:
+                            user_profile.avatar = request.FILES['avatar']
+                            user_profile.save()
+             
+
                     user.save()
                     messages.success(request, 'Username with name  {}  added.'.format(username))
             else:
@@ -1173,18 +1544,23 @@ def account(request):
                 tparams['form'] = form
                 tparams['projects'] = nav_TeamLeader_projects(request)
 
-            return render(request, 'account.html',  {'tparams': tparams})
+            return render(request, 'account.html',  {'tparams': tparams, 'projectBool':projectBool,'projects_':projects,})
         else:
             initial = { 'first_name':request.user.first_name,
                         'last_name': request.user.last_name,
                         'username':request.user.username,
                         'email': request.user.email,
-                        'currentPassword': request.user.password
+                        'currentPassword': request.user.password,
+                      
                        }
             form = updateUserForm(initial=initial)
 
-        tparams['form'] = form
-        tparams['projects'] = nav_TeamLeader_projects(request)
+        #tparams['form'] = form
+        #tparams['user_profile_avatar'] = user_profile.avatar
 
-        return render(request, 'account.html', tparams)
+        #tparams['projects'] = nav_TeamLeader_projects(request)
+
+        return render(request, 'account.html',  {'form': form,'projects':nav_TeamLeader_projects(request), 'projectBool':projectBool,'projects_':projects, })
     return redirect('login')
+
+  

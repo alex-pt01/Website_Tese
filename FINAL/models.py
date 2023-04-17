@@ -17,6 +17,7 @@ class TeamLeader(models.Model):
 
 class TeamMember(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE) 
+
     def __str__(self):
         return str(self.user.username)
     
@@ -30,7 +31,21 @@ class Project(models.Model):
     def __str__(self):
         return self.name
 
-    
+class UsabilitySmells(models.Model):
+    teamLeader = models.ForeignKey(TeamLeader, default=None, on_delete=models.CASCADE)
+    usabilitySmell = models.CharField(max_length=99999999,default="x")
+    description = models.CharField(max_length=99999,default="x")
+    def __str__(self):
+        return "UsabilitySmells - " +str(self.teamLeader.user.username)
+
+class HeuristicEvaluation(models.Model):
+    teamLeader = models.ForeignKey(TeamLeader, default=None, on_delete=models.CASCADE)
+    heuristicName = models.CharField(max_length=99999999,default="x")
+    description = models.CharField(max_length=99999,default="x")
+    def __str__(self):
+        return "HeuristicEvaluation - " +str(self.teamLeader.user.username)
+
+     
 class Video(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, default=None)

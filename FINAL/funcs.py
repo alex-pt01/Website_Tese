@@ -291,15 +291,30 @@ def emotion_dict_to_plot(emotion_dict):
     
         #print(len(timeEmotions))
     x_data = [datetime.datetime.strptime(x, '%M:%S:%f').strftime('%M:%S') for x in timeEmotions]
-
+    
+    #RGB
+    #BGR
     # Define your traces
     trace1 = go.Scatter(x=x_data, y=anger, name='Anger')
+    trace1.line.color = 'rgb(161,61,61)' 
+    
     trace2 = go.Scatter(x=x_data, y=disgust, name='Disgust')
+    trace2.line.color = 'rgb(100,153,65)' 
+
     trace3 = go.Scatter(x=x_data, y=fear, name='Fear')
+    trace3.line.color = 'rgb(91,57,134)' 
+
     trace4 = go.Scatter(x=x_data, y=enjoyment, name='Enjoyment')
+    trace4.line.color = 'rgb(255,99,71)' 
+
     trace5 = go.Scatter(x=x_data, y=contempt, name='Contempt')
+    trace5.line.color = 'rgb(183,107,81)' 
+
     trace6 = go.Scatter(x=x_data, y=sadness, name='Sadness')
+    trace6.line.color = 'rgb(63,106,174)' 
+
     trace7 = go.Scatter(x=x_data, y=surprise, name='Surprise')
+    trace7.line.color = 'rgb(61,175,175)' 
 
     # Define your layout
     layout = go.Layout(

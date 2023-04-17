@@ -12,4 +12,6 @@ admin.site.register(Video)
 admin.site.register(Invitations)
 admin.site.register(UsabilityEval_CW_Smells_Emotion )
 admin.site.register(UsabilityEval_CW_Smells_without_Emotion )
+admin.site.register(UsabilitySmells )
+admin.site.register(HeuristicEvaluation )
 

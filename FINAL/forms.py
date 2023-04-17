@@ -7,6 +7,7 @@ from app.models import  *
 from django.contrib.auth.models import AbstractUser
 
 
+
 class InvitationForm(forms.Form):
     projectID = forms.IntegerField(label='Project', required=False) #projectID
     teamMemberEmail = forms.EmailField(max_length = 200)
@@ -74,8 +75,31 @@ class ProjectForm(forms.ModelForm):
         model = Project
         fields = ['name', 'description', 'start_date', 
                   'end_date']
-        
 
+class UsabilitySmellsForm(forms.ModelForm):
+    usabilitySmell = forms.CharField(label='Usability Smell', required=False)
+    description = forms.CharField(label='Description', required=False)
+    class Meta:
+        model = UsabilitySmells
+        fields = ['usabilitySmell', 'description']
+
+class HeuristicEvaluationForm(forms.ModelForm):
+    heuristicName = forms.CharField(label='Heuristic Name', required=False)
+    description = forms.CharField(label='Description', required=False)
+    class Meta:
+        model = HeuristicEvaluation
+        fields = ['heuristicName', 'description']
+
+class ProjectSearchForm(forms.ModelForm):
+    name = forms.CharField(label='Name', required=False)
+    description = forms.CharField(label='Description', required=False)
+    start_date = DateTimeLocalField( required=False)
+    end_date = DateTimeLocalField( required=False)
+
+    class Meta:
+        model = Project
+        fields = ['name', 'description', 'start_date', 
+                  'end_date']
 class VideoForm(forms.ModelForm):
     project = forms.CharField(label='Project', required=True)
     usability_test_name = forms.CharField(label='Usability test name', required=True)
@@ -100,6 +124,23 @@ class VideoEditForm(forms.ModelForm):
         fields = ['usability_test_name', 'user_type', 'user_UID', 
                   'local']
 
+
+class selectVideoSearchForm(forms.Form):
+    proj_name = forms.CharField(label='Project name', required=False)
+    usability_test_name = forms.CharField(label='Usability test name', required=False)
+    user_type = forms.CharField(label='User type', required=False)
+    user_UID = forms.IntegerField(label='User UID', required=False)
+    local = forms.CharField(label='Local', required=False)
+    splited_bool  = forms.ChoiceField(choices = (
+    ("Yes", "Yes"),
+    ("No", "No")),required=False)
+
+    class Meta:
+        #model = Project
+        fields = ('proj_name', 'usability_test_name', 'user_type','user_UID', 'local', 'splited_bool')
+
+
+
 class EditSubVideoTaskForm(forms.ModelForm):
     task_number = forms.CharField(label='Task number', required=False)
     actions = forms.CharField(label='Actions', required=False)
@@ -108,8 +149,6 @@ class EditSubVideoTaskForm(forms.ModelForm):
     class Meta:
         model = SubVideoTask
         fields = ['task_number', 'actions', 'usabilitySmells']
-
-
 
 class TaskWithEmotionForm(forms.ModelForm):
     q1_with_emotion = forms.CharField(label='CW Question 1', required=False)
