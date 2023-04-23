@@ -15,6 +15,18 @@ urlpatterns = [
     
 
     #TEAM LEADER ----------------------------------------------------------------------------------
+    path('resultsConsolidation_permissions/', views.resultsConsolidation_permissions, name='resultsConsolidation_permissions'),
+    path('resultsConsolidation_usabilityTests_permissions/<int:projectID>', views.resultsConsolidation_usabilityTests_permissions, name='resultsConsolidation_usabilityTests_permissions'),
+    path('allow_TM_resultsConsolidation/<int:videoID>', views.allow_TM_resultsConsolidation, name='allow_TM_resultsConsolidation'),
+    path('not_allow_TM_resultsConsolidation/<int:videoID>', views.not_allow_TM_resultsConsolidation, name='not_allow_TM_resultsConsolidation'),
+
+    path('results/', views.results, name='results'),
+    path('projectResults/<int:projectID>', views.projectResults, name='projectResults'),
+
+    path('resultsConsolidation/', views.resultsConsolidation, name='resultsConsolidation'),
+    path('resultsConsolidation_usabilityTests/<int:projectID>', views.resultsConsolidation_usabilityTests, name='resultsConsolidation_usabilityTests'),
+    path('resultsConsolidation_TM_evaluation/<str:evalType>/<int:videoID>', views.resultsConsolidation_TM_evaluation, name='resultsConsolidation_TM_evaluation'),
+
     path('manage_Invitations/', views.manage_Invitations, name='manage_Invitations'),
     path('create_Invitations/', views.create_Invitations, name='create_Invitations'),
     path('deleteInvitation/<int:id>', views.deleteInvitation, name='deleteInvitation'),
@@ -56,10 +68,18 @@ urlpatterns = [
     path('manage_teamMember_Invitations/', views.manage_teamMember_Invitations, name='manage_teamMember_Invitations'),
     path('accept_teamMember_Invitation/<int:id>', views.accept_teamMember_Invitation, name='accept_teamMember_Invitation'),
 
+    path('CW_usability_tests_resultsConsolidation/<int:id>', views.CW_usability_tests_resultsConsolidation, name='CW_usability_tests_resultsConsolidation'),
+    path('CW_tasks_resultsConsolidation/<str:x>/<str:projName>/<int:projID>/<int:id>', views.CW_tasks_resultsConsolidation, name='CW_tasks_resultsConsolidation'),
+    path('CW_evaluateTask_resultsConsolidation/<str:x>/<str:projName>/<int:projID>/<int:id>', views.CW_evaluateTask_resultsConsolidation, name='CW_evaluateTask_resultsConsolidation'),
+
     path('CW_usability_tests/<int:id>', views.CW_usability_tests, name='CW_usability_tests'),
     path('CW_tasks/<str:x>/<str:projName>/<int:projID>/<int:id>', views.CW_tasks, name='CW_tasks'),
     path('CW_evaluateTask/<str:x>/<str:projName>/<int:projID>/<int:id>', views.CW_evaluateTask, name='CW_evaluateTask'),
     
+    path('Smells_usability_tests_resultsConsolidation/<int:id>', views.Smells_usability_tests_resultsConsolidation, name='Smells_usability_tests_resultsConsolidation'),
+    path('Smells_tasks_resultsConsolidation/<str:x>/<str:projName>/<int:projID>/<int:id>', views.Smells_tasks_resultsConsolidation, name='Smells_tasks_resultsConsolidation'),
+    path('Smells_evaluateTask_resultsConsolidation/<str:x>/<str:projName>/<int:projID>/<int:id>', views.Smells_evaluateTask_resultsConsolidation, name='Smells_evaluateTask_resultsConsolidation'),
+
     path('Smells_usability_tests/<int:id>', views.Smells_usability_tests, name='Smells_usability_tests'),
     path('Smells_tasks/<str:x>/<str:projName>/<int:projID>/<int:id>', views.Smells_tasks, name='Smells_tasks'),
     path('Smells_evaluateTask/<str:x>/<str:projName>/<int:projID>/<int:id>', views.Smells_evaluateTask, name='Smells_evaluateTask'),

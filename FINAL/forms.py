@@ -100,6 +100,28 @@ class ProjectSearchForm(forms.ModelForm):
         model = Project
         fields = ['name', 'description', 'start_date', 
                   'end_date']
+        
+class InvitationSearchForm(forms.Form):
+    proj_name = forms.CharField(label='Project Name', required=False)
+    member_name = forms.CharField(label='Team Member Name', required=False)
+    teamMemberEmail = forms.EmailField(max_length = 200,required=False)
+    start_date = DateTimeLocalField( required=False)
+    end_date = DateTimeLocalField( required=False)
+    created_at = DateTimeLocalField( required=False)
+    class Meta:
+        fields = ('proj_name', 'member_name', 'teamMemberEmail','start_date', 'end_date', 'created_at')
+
+class InvitationTMSearchForm(forms.Form):
+    proj_name = forms.CharField(label='Project Name', required=False)
+    leader_name = forms.CharField(label='Team Leader Name', required=False)
+    teamLeaderEmail = forms.EmailField(max_length = 200,required=False)
+    start_date = DateTimeLocalField( required=False)
+    end_date = DateTimeLocalField( required=False)
+    class Meta:
+        fields = ('proj_name', 'leader_name', 'teamLeaderEmail','start_date', 'end_date')
+
+                     
+
 class VideoForm(forms.ModelForm):
     project = forms.CharField(label='Project', required=True)
     usability_test_name = forms.CharField(label='Usability test name', required=True)
@@ -157,19 +179,25 @@ class TaskWithEmotionForm(forms.ModelForm):
     q4_with_emotion = forms.CharField(label='CW Question 4', required=False)
     notes_with_emotion = forms.CharField(label='Notes', required=False)
     eval_done_with_emotion = forms.BooleanField(label='Done', required=False, widget=forms.CheckboxInput(attrs={
-   
+
     'class': 'switch',
     'data-on': 'Enabled',
     'data-off': 'Disabled'}))
+    number_usability_problems_CW_with_emotion = forms.CharField(label='Number of Usability Problems', required=False)
+
 
 
     usabilitySmells_notes_with_emotion = forms.CharField(label='Notes', required=False)
     usabilitySmells_done_with_emotion = forms.BooleanField(label='Done', required=False)
+    number_usability_problems_Smells_with_emotion = forms.CharField(label='Number of Usability Problems', required=False)
+
     class Meta:
         model = SubVideoTask
         fields = [ 'q1_with_emotion', 'q2_with_emotion', 
                   'q3_with_emotion', 'q4_with_emotion', 
-                    'notes_with_emotion','eval_done_with_emotion', 'usabilitySmells_notes_with_emotion', 'usabilitySmells_done_with_emotion']
+                    'notes_with_emotion','eval_done_with_emotion', 
+                    'usabilitySmells_notes_with_emotion', 'usabilitySmells_done_with_emotion',
+                    'number_usability_problems_CW_with_emotion', 'number_usability_problems_Smells_with_emotion']
 
 class TaskWithoutEmotionForm(forms.ModelForm):
     q1_without_emotion = forms.CharField(label='CW Question 1', required=False)
@@ -181,12 +209,17 @@ class TaskWithoutEmotionForm(forms.ModelForm):
     'class': 'switch',
     'data-on': 'Enabled',
     'data-off': 'Disabled'}))
+    number_usability_problems_CW_without_emotion = forms.CharField(label='Number of Usability Problems', required=False)
 
     usabilitySmells_notes_without_emotion = forms.CharField(label='Notes', required=False)
     usabilitySmells_done_without_emotion = forms.BooleanField(label='Done', required=False)
+    number_usability_problems_Smells_without_emotion = forms.CharField(label='Number of Usability Problems', required=False)
+
     class Meta:
         model = SubVideoTask
         fields = [ 'q1_without_emotion', 'q2_without_emotion', 
                   'q3_without_emotion', 'q4_without_emotion', 
-                    'notes_without_emotion','eval_done_without_emotion','usabilitySmells_notes_without_emotion','usabilitySmells_done_without_emotion']
+                    'notes_without_emotion','eval_done_without_emotion',
+                    'usabilitySmells_notes_without_emotion','usabilitySmells_done_without_emotion',
+                    'number_usability_problems_CW_without_emotion', 'number_usability_problems_Smells_without_emotion' ]
 

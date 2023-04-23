@@ -70,7 +70,13 @@ class Invitations(models.Model):
     def __str__(self):
         return "teamMember: " + str(self.teamMember.user.username) + " Project: " + str(self.project.name)
     
-
+class ResultsConsulidationPermission(models.Model):
+    video = models.ForeignKey(Video, on_delete=models.CASCADE,default=None)
+    allow_permission =  models.BooleanField(default=False)  
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return "ResultsConsulidatioPermission " 
+    
 class SubVideoTask(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -115,7 +121,7 @@ class UsabilityEval_CW_Smells_Emotion(models.Model):
 class UsabilityEval_CW_Smells_without_Emotion(models.Model):
     subVideoTask = models.ForeignKey(SubVideoTask, on_delete=models.CASCADE,default=None)
     teamMember = models.ForeignKey(TeamMember, on_delete=models.CASCADE,default=None)   
-    
+
     #CW
     eval_done_without_emotion =  models.BooleanField(default=False)  
     q1_without_emotion = models.CharField(max_length=99999,default="x")
@@ -131,3 +137,39 @@ class UsabilityEval_CW_Smells_without_Emotion(models.Model):
     
     def __str__(self):
         return "teamMember: " + str(self.teamMember.user.username) +  " ->  UsabilityEval_CW_Smells_without_Emotion" 
+
+class ResultsConsulidation(models.Model):
+    subVideoTask = models.ForeignKey(SubVideoTask, on_delete=models.CASCADE,default=None)
+    #CW
+    eval_done_with_emotion =  models.BooleanField(default=False)  
+    q1_with_emotion = models.CharField(max_length=99999,default="x")
+    q2_with_emotion = models.CharField(max_length=99999,default="x")
+    q3_with_emotion = models.CharField(max_length=99999,default="x")
+    q4_with_emotion = models.CharField(max_length=99999,default="x")
+    notes_with_emotion = models.CharField(max_length=99999,default="x")
+    number_usability_problems_CW_with_emotion = models.IntegerField( blank=True, null=True) 
+
+    #Smells
+    usabilitySmells_selected_with_emotion = models.CharField(max_length=99999,default="[]")
+    usabilitySmells_done_with_emotion =  models.BooleanField(default=False)  
+    usabilitySmells_notes_with_emotion =  models.CharField(max_length=99999,default="x")
+    number_usability_problems_Smells_with_emotion = models.IntegerField( blank=True, null=True) 
+
+    #without emotions--------------
+    #CW
+    eval_done_without_emotion =  models.BooleanField(default=False)  
+    q1_without_emotion = models.CharField(max_length=99999,default="x")
+    q2_without_emotion = models.CharField(max_length=99999,default="x")
+    q3_without_emotion = models.CharField(max_length=99999,default="x")
+    q4_without_emotion = models.CharField(max_length=99999,default="x")
+    notes_without_emotion = models.CharField(max_length=99999,default="x")
+    number_usability_problems_CW_without_emotion = models.IntegerField( blank=True, null=True) 
+
+    #Smells
+    usabilitySmells_selected_without_emotion = models.CharField(max_length=99999,default="[]")
+    usabilitySmells_done_without_emotion =  models.BooleanField(default=False)  
+    usabilitySmells_notes_without_emotion =  models.CharField(max_length=99999,default="x")    
+    number_usability_problems_Smells_without_emotion = models.IntegerField( blank=True, null=True) 
+
+    def __str__(self):
+        return "ResultsConsulidation "
